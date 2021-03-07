@@ -7,6 +7,8 @@
 - AWS ECR
 - AWS X-Ray
 - AWS CloudWatch - Logs
+- AWS Elastic Beanstalk
+  - AWS CloudFormation
 
 ## Techs
 
