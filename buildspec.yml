@@ -1,0 +1,62 @@
+version: 0.2
+env:
+  variables:
+    ECR_REPO: $$ACCOUNT_ID$$.dkr.ecr.$$AWS_REGION$$.amazonaws.com
+phases:
+  install:
+    runtime-versions:
+      docker: 19
+  pre_build:
+    commands:
+  build:
+    commands:
+      # Generate Dockerrun
+      - echo Generating Dockerrun.aws.json...
+      - cd ./task-definition/
+      - chmod +x generate-dockerrun.sh
+      - ./generate-dockerrun.sh
+      - cd ..
+
+      # Create ECR_REPO
+      - ECR_REPO=$(echo "$ECR_REPO" | sed 's/\$\$AWS_REGION\$\$/'"${AWS_REGION}"'/g')
+      - ECR_REPO=$(echo "$ECR_REPO" | sed 's/\$\$ACCOUNT_ID\$\$/'"${ACCOUNT_ID}"'/g')
+
+      # Log in to the Docker CLI
+      - echo "$DOCKER_PW" | docker login -u "$DOCKER_ID" --password-stdin
+      # Login ECR
+      - aws ecr get-login-password | docker login --username AWS --password-stdin ${ECR_REPO}
+
+      # Build the Docker images
+      - echo Building the production Docker image...
+      # Auth Api Image
+      - docker build -t aws-auth-api -f ./src/STSService/AWS.Insurance.STS.Api/Dockerfile ./src
+      - docker tag aws-auth-api ${ECR_REPO}/aws-auth-api:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+
+      # Operation Api Image
+      - docker build -t aws-operation-api -f ./src/OperationsService/AWS.Insurance.Operations.Api/Dockerfile ./src
+      - docker tag aws-operation-api ${ECR_REPO}/aws-operation-api:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+
+      # Location API Image
+      - docker build -t aws-location-api -f ./src/LocationsService/AWS.Insurance.Locations.Api/Dockerfile ./src
+      - docker tag aws-location-api ${ECR_REPO}/aws-location-api:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+
+      # Nginx Daemon Image
+      - docker build -t aws-nginx -f ./nginx/Dockerfile ./nginx
+      - docker tag aws-nginx ${ECR_REPO}/aws-nginx:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+
+      # X-Ray Daemon Image
+      - docker build -t aws-xray-daemon -f ./xray-daemon/Dockerfile ./xray-daemon
+      - docker tag aws-xray-daemon ${ECR_REPO}/aws-xray-daemon:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+  post_build:
+    commands:
+      # Take these images and push them to ECR
+      - echo Pushing the Docker images...
+      - docker push ${ECR_REPO}/aws-auth-api:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+      - docker push ${ECR_REPO}/aws-operation-api:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+      - docker push ${ECR_REPO}/aws-location-api:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+      - docker push ${ECR_REPO}/aws-nginx:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+      - docker push ${ECR_REPO}/aws-xray-daemon:${CODEBUILD_RESOLVED_SOURCE_VERSION}
+artifacts:
+  files:
+    - "Dockerrun.aws.json"
+  discard-paths: no

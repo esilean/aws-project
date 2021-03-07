@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Resources:
+  ElasticBeanstalkApplication:
+    Type: "AWS::ElasticBeanstalk::Application"
+    Properties:
+      ApplicationName: "AWSProjectCF"
+
+  ElasticBeanstalkApplicationVersion:
+    Type: "AWS::ElasticBeanstalk::ApplicationVersion"
+    Properties:
+      ApplicationName: !Ref ElasticBeanstalkApplication
+      SourceBundle:
+        S3Bucket: !Sub "elasticbeanstalk-${AWS::Region}-268919435141"
+        S3Key: "2021018hAL-UkjJRkl.zip"
+
+  ElasticBeanstalkEnvironment:
+    Type: "AWS::ElasticBeanstalk::Environment"
+    Properties:
+      EnvironmentName: "CFDevelopX"
+      ApplicationName: !Ref ElasticBeanstalkApplication
+      VersionLabel: !Ref ElasticBeanstalkApplicationVersion
+      TemplateName: !Ref ElasticBeanstalkConfigurationTemplate
+
+  ElasticBeanstalkConfigurationTemplate:
+    Type: "AWS::ElasticBeanstalk::ConfigurationTemplate"
+    Properties:
+      ApplicationName: !Ref ElasticBeanstalkApplication
+      SolutionStackName: "64bit Amazon Linux 2018.03 v2.24.1 running Multi-container Docker 19.03.13-ce (Generic)"
+      OptionSettings:
+        - Namespace: aws:autoscaling:launchconfiguration
+          OptionName: IamInstanceProfile
+          Value: !Ref ElasticBeanstalkInstanceProfile
+
+  ElasticBeanstalkInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref ElasticBeanstalkRole
+
+  ElasticBeanstalkRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+
+  ElasticBeanstalkRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: ElasticBeanstalkRole
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            NotAction: iam:*
+            Resource: "*"
+      Roles:
+        - !Ref ElasticBeanstalkRole

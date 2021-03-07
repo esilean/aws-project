@@ -1,0 +1,113 @@
+{
+    "AWSEBDockerrunVersion": 2,
+    "containerDefinitions": [
+        {
+            "name": "nginx",
+            "image": "$$ACCOUNT_ID$$.dkr.ecr.$$AWS_REGION$$.amazonaws.com/aws-nginx:$$VERSION$$",
+            "environment": [],
+            "essential": true,
+            "memory": 150,
+            "mountPoints": [],
+            "portMappings": [
+                {
+                    "hostPort": 80,
+                    "containerPort": 80,
+                    "protocol": "tcp"
+                }
+            ],
+            "links": [
+                "operation-api",
+                "location-api"
+            ]
+        },
+        {
+            "name": "xray-daemon",
+            "image": "$$ACCOUNT_ID$$.dkr.ecr.$$AWS_REGION$$.amazonaws.com/aws-xray-daemon:$$VERSION$$",
+            "cpu": 32,
+            "memoryReservation": 256,
+            "portMappings": [
+                {
+                    "hostPort": 2000,
+                    "containerPort": 2000,
+                    "protocol": "udp"
+                }
+            ],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "index-aws-project/xray",
+                    "awslogs-region": "$$AWS_REGION$$",
+                    "awslogs-stream-prefix": "index-aws-project/xray/daemon"
+                }
+            }
+        },
+        {
+            "name": "operation-api",
+            "image": "$$ACCOUNT_ID$$.dkr.ecr.$$AWS_REGION$$.amazonaws.com/aws-operation-api:$$VERSION$$",
+            "essential": true,
+            "memory": 110,
+            "cpu": 1,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 5000
+                }
+            ],
+            "links": [
+                "location-api",
+                "auth-api",
+                "xray-daemon"
+            ],
+            "environment": [
+                {
+                    "name": "AWS_XRAY_DAEMON_ADDRESS",
+                    "value": "xray-daemon:2000"
+                }
+            ]
+        },
+        {
+            "name": "location-api",
+            "image": "$$ACCOUNT_ID$$.dkr.ecr.$$AWS_REGION$$.amazonaws.com/aws-location-api:$$VERSION$$",
+            "essential": true,
+            "memory": 110,
+            "cpu": 1,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 5005
+                }
+            ],
+            "links": [
+                "xray-daemon"
+            ],
+            "environment": [
+                {
+                    "name": "AWS_XRAY_DAEMON_ADDRESS",
+                    "value": "xray-daemon:2000"
+                }
+            ]
+        },
+        {
+            "name": "auth-api",
+            "image": "$$ACCOUNT_ID$$.dkr.ecr.$$AWS_REGION$$.amazonaws.com/aws-auth-api:$$VERSION$$",
+            "essential": true,
+            "memory": 110,
+            "cpu": 1,
+            "portMappings": [
+                {
+                    "containerPort": 80,
+                    "hostPort": 5010
+                }
+            ],
+            "links": [
+                "xray-daemon"
+            ],
+            "environment": [
+                {
+                    "name": "AWS_XRAY_DAEMON_ADDRESS",
+                    "value": "xray-daemon:2000"
+                }
+            ]            
+        }        
+    ]
+}

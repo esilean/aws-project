@@ -1,0 +1,62 @@
+version: "3.5"
+
+networks:
+  aws-nettt:
+    driver: bridge
+
+services:
+  nginx:
+    image: esilean/aws-nginx
+    build:
+      dockerfile: Dockerfile
+      context: ./nginx
+    restart: always # because it is routing traffic to our entire app
+    ports:
+      - "8080:80"
+    depends_on:
+      - operation-api
+      - location-api
+    networks:
+      - aws-nettt
+
+  auth-api:
+    image: esilean/aws-auth-api
+    build:
+      context: ./src
+      dockerfile: STSService/AWS.Insurance.STS.Api/Dockerfile
+    container_name: auth-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    #ports:
+    #  - "5010:80"
+    networks:
+      - aws-nettt
+
+  operation-api:
+    image: esilean/aws-operation-api
+    build:
+      context: ./src
+      dockerfile: OperationsService/AWS.Insurance.Operations.Api/Dockerfile
+    container_name: operation-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    #ports:
+    #  - "5000:80"
+    networks:
+      - aws-nettt
+
+  location-api:
+    image: esilean/aws-location-api
+    build:
+      context: ./src
+      dockerfile: LocationsService/AWS.Insurance.Locations.Api/Dockerfile
+    container_name: location-api
+    restart: unless-stopped
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+    #ports:
+    #  - "5005:80"
+    networks:
+      - aws-nettt
